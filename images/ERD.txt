@@ -1,0 +1,58 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+
+Table category {
+  id integer [primary key]
+  category varchar
+}
+
+Table merchant {
+  id integer [primary key]
+  merchant_name varchar
+}
+
+Table merchant_categpry {
+  id integer [primary key]
+  merchant_id integer
+  category_id integer
+}
+
+Table city {
+  id integer [primary key]
+  city_name varchar
+  state char(2)
+  city_pop integer
+}
+Table address {
+  id integer [primary key]
+  street varchar
+  city_id integer
+  zip char(5)
+  lat float
+  long float
+}
+Table customer {
+  id integer [primary key]
+  first_name varchar
+  last_name varchar
+  gender char(1)
+  job varchae
+  birth_date date
+  cc_num char
+  address_id integer
+}
+
+Table transaction {
+  id integer [primary key]
+  transaction_num integer
+  lransaction_ts timestamp
+  customer_id integer
+  merchant_cat_id integer
+}
+
+Ref: transaction.customer_id > customer.id // many-to-one
+Ref: transaction.merchant_cat_id > merchant_categpry.id
+Ref: customer.address_id > address.id
+Ref: address.city_id > city.id
+Ref: merchant_categpry.category_id > category.id
+Ref: merchant_categpry.merchant_id > merchant.id
