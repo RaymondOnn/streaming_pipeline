@@ -15,11 +15,9 @@
 #    start-history-server.sh
 #fi
 
-
 # Set environment variables
 export SPARK_MODE="${SPARK_MODE:-master}"
 export SPARK_MASTER_URL="${SPARK_MASTER_URL:-spark://spark-master:7077}"
-
 
 # validate env variables SPARK_MODE, SPARK_MASTER_URL
 error_code=0
@@ -48,8 +46,6 @@ fi
 
 [[ "$error_code" -eq 0 ]] || exit "$error_code"
 
-
-
 # Init based on SPARK_MODE
 if [ "$SPARK_MODE" == "master" ]; then
     # Master constants
@@ -64,3 +60,5 @@ else
 fi
 
 exec "$EXEC" "${ARGS[@]-}"
+
+	fi

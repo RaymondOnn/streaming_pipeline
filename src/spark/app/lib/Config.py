@@ -19,7 +19,7 @@ def get_app_conf(env: str):
     config = ConfigParser()
     config.read(file)
     conf = {}
-    for (key, val) in config.items(env):
+    for key, val in config.items(env):
         conf[key] = val
     return conf
 
@@ -50,7 +50,7 @@ def get_spark_conf(env: str = "SPARK"):
     file = find("app.conf", os.getcwd())
     config.read(file)
 
-    for (key, val) in config.items(env):
+    for key, val in config.items(env):
         spark_conf.set(key, val)
     return spark_conf
 
