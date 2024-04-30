@@ -60,5 +60,3 @@ else
 fi
 
 exec "$EXEC" "${ARGS[@]-}"
-
-	fi
