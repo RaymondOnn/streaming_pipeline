@@ -24,8 +24,8 @@ error_code=0
 
 # Auxiliary functions
 print_validation_error() {
-    error "$1"
-    error_code=1
+     error "$1"
+     error_code=1
 }
 
 # Validate spark mode
@@ -33,15 +33,15 @@ case "$SPARK_MODE" in
 master | worker) ;;
 
 *)
-    print_validation_error "Invalid mode $SPARK_MODE. Supported types are 'master/worker'"
-    ;;
+     print_validation_error "Invalid mode $SPARK_MODE. Supported types are 'master/worker'"
+     ;;
 esac
 
 # Validate worker node inputs
 if [[ "$SPARK_MODE" == "worker" ]]; then
-    if [[ -z "$SPARK_MASTER_URL" ]]; then
-        print_validation_error "For worker nodes you need to specify the SPARK_MASTER_URL"
-    fi
+     if [[ -z "$SPARK_MASTER_URL" ]]; then
+            print_validation_error "For worker nodes you need to specify the SPARK_MASTER_URL"
+     fi
 fi
 
 [[ "$error_code" -eq 0 ]] || exit "$error_code"
@@ -49,14 +49,14 @@ fi
 # Init based on SPARK_MODE
 if [ "$SPARK_MODE" == "master" ]; then
     # Master constants
-    EXEC=$(command -v start-master.sh)
-    ARGS=()
-    echo "** Starting Spark in master mode **"
+     EXEC=$(command -v start-master.sh)
+     ARGS=()
+     echo "** Starting Spark in master mode **"
 else
     # Worker constants
-    EXEC=$(command -v start-worker.sh)
-    ARGS=("$SPARK_MASTER_URL")
-    echo "** Starting Spark in worker mode **"
+     EXEC=$(command -v start-worker.sh)
+     ARGS=("$SPARK_MASTER_URL")
+     echo "** Starting Spark in worker mode **"
 fi
 
 exec "$EXEC" "${ARGS[@]-}"
