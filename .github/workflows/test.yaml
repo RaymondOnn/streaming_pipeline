@@ -25,4 +25,4 @@ jobs:
       - name: Run Tests
         run: |
             pip install pytest==8.0.0
-            python run_test.py
+            python run_tests.py
