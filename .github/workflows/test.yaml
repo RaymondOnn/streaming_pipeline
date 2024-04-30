@@ -1,4 +1,4 @@
-name: Test DAGs
+name: 
 
 on:
   workflow_dispatch:
@@ -16,23 +16,13 @@ jobs:
       - name: Set Up Python
         uses: actions/setup-python@v3
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip check
-      - name: Lint with Flake8
-        continue-on-error: true
-        run: |
-          pip install flake8==7.0.0
-          flake8 --ignore E501 ./src/airflow/dags/ -v
-      - name: Check code format with black
-        continue-on-error: true
-        run: |
-          pip install pytest-black==0.3.12
-          pytest --black -p no:dags/online_retail/dbt/dbt_packages/dbt_utils/tests/conftest.py -v ./src/airflow/dags/
-      - name: Test DAGs with Pytest
+      - name: Run Tests
         run: |
             pip install pytest==8.0.0
-            pytest --cache-clear -rsxX -l --tb=short --strict -v ./tests/
+            python run_test.py
