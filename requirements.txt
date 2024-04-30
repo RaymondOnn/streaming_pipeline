@@ -1,0 +1,12 @@
+httpx==0.27.0
+minio==7.2.5
+flask==3.0.2
+flask-smorest==0.44.0
+py-avro-schema==3.6.0
+pydantic==2.6.4
+confz
+confluent-kafka==2.3.0
+fastavro==1.9.1
+requests==2.31.0
+PyYAML
+types-PyYAML

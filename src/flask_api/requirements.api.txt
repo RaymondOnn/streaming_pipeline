@@ -1,0 +1,9 @@
+minio==7.2.5
+flask==3.0.2
+flask-smorest==0.44.0
+pydantic==2.6.4
+confluent-kafka==2.3.0
+fastavro==1.9.1
+requests
+py-avro-schema==3.6.0
+confz

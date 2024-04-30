@@ -1,0 +1,19 @@
+---
+version: "3"
+
+include:
+  - path:
+    - ../../postgres/docker-compose.yaml
+
+services:
+  pyspark:
+    image: jupyter/all-spark-notebook:latest
+    container_name: spark-notebook
+    environment:
+      PYSPARK_SUBMIT_ARGS: >
+        --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,org.postgresql:postgresql:42.6.0,org.apache.spark:spark-avro_2.12:3.5.0
+        --driver-class-path /home/jovyan/.ivy2/jars/org.postgresql_postgresql-42.6.0.jar pyspark-shell
+    volumes:
+      - ${PWD:-.}/src/spark:/home/jovyan/work
+    ports:
+      - 8888:8888

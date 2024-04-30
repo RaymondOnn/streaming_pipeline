@@ -1,0 +1,25 @@
+---
+kafka:
+  bootstrap_servers: &kafka_servers >-
+    kafka-broker:19092
+  topic: &kafka_topic transactions
+schema_registry:
+  url: http://schema-registry:8081
+  # SCHEMA_REGISTRY_SUBJECT: f"{KAFKA_TOPIC}-value"
+spark:
+  app_name: Streaming Pipeline
+  spark_config:
+    spark.streaming.stopGracefullyOnShutdown: True
+  kafka_config:
+    kafka.bootstrap.servers: *kafka_servers
+    subscribe: *kafka_topic
+    includeHeaders: "true"
+    startingOffsets: "earliest"
+    failOnDataLoss: "false"
+    maxOffsetsPerTrigger: 5
+postgres:
+  user: postgres
+  password: postgres
+  db_name: postgres
+  server: postgresdb  # '127.0.0.1'
+  port: 5432

@@ -1,0 +1,10 @@
+---
+version: "3"
+
+include:
+  - path:
+    # - ./src/source/docker-compose.yaml
+    # api:5000, minio:9000/9001, schema_reg:8081, zookeeper:2181, broker:9092/19092, kafka-ui:8889
+    - ./src/docker/docker-compose.ingest.yaml
+    # spark-node:9090/7070, postgresdb:5432, pgAdmin:5050
+    - ./src/docker/docker-compose.store.yaml

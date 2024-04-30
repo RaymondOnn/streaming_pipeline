@@ -3,8 +3,8 @@
 ## Introduction
 
 With this project, I constructed an streaming pipeline for processing credit card transactions
-1. The pipeline receives transactions via PUT requests 
-2. Transaction data received is validated 
+1. The pipeline receives transactions via PUT requests
+2. Transaction data received is validated
    - If it fails validation, it gets stored in an storage bucket
    - If it passes validation, it gets ingested into Kafka
 3. Transaction data is transformed into the desired form before storing it in the database
