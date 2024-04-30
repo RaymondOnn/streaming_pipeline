@@ -9,4 +9,4 @@ confluent-kafka==2.3.0
 fastavro==1.9.1
 requests==2.31.0
 PyYAML
-types-PyYAML
+pyspark

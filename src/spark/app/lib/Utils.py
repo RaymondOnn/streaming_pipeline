@@ -3,6 +3,7 @@ from app.lib.Config import get_sr_conf
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from pyspark.sql import SparkSession
 
+CONFIG_FILE = "app.conf"
 
 def get_spark_session():
     """Initialize SparkSession
@@ -12,7 +13,8 @@ def get_spark_session():
     """
     print("SparkSession Created...")
     return (
-        SparkSession.builder.config(conf=get_spark_conf())
+        SparkSession.builder
+        .config(conf=get_spark_conf(CONFIG_FILE))
         .config("spark.sql.autoBroadcastJoinThreshold", -1)
         .config("spark.sql.adaptive.enabled", "false")
         .config(

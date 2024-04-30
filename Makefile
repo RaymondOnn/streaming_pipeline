@@ -82,7 +82,7 @@ venv_create: requirements.txt ## create virtual environment
 		&& make venv_install
 
 venv_install: requirements.txt
-	$(PIP) install -r requirements.txt
+	pip install -r requirements.txt
 
 venv: venv_create  ## activate virtual environment
 	. $(VENV_BIN)/activate
