@@ -2,7 +2,7 @@ try:
     from flask import request
     from flask.views import MethodView
     from flask_smorest import Blueprint
-    from fx.sort_requests import sort_requests
+    from ..fx.sort_requests import sort_requests
 except Exception as e:
     print(f"Error: {e}")
 

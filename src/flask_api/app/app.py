@@ -2,17 +2,17 @@ from confluent_kafka.admin import AdminClient
 from flask import Flask
 from flask_smorest import Api
 
-from flask_api.api.transactions import blp as TransactionBlueprint
-from flask_api.fx import object_store
-from flask_api.fx.pubsub import create_topic
-from flask_api.fx.registry import make_schema_str
-from flask_api.fx.registry import SchemaRegistry
-from flask_api.fx.sort_requests import TransactionStream
-from flask_api.utils.settings import APIConfig
-from flask_api.utils.settings import FXConfig
-from flask_api.utils.settings import KafkaConfig
-from flask_api.utils.settings import MinioConfig
-from flask_api.utils.settings import SchemaRegistryConfig
+from .api.transactions import blp as TransactionBlueprint
+from .fx import object_store
+from .fx.pubsub import create_topic
+from .fx.registry import make_schema_str
+from .fx.registry import SchemaRegistry
+from .fx.sort_requests import TransactionStream
+from .utils.settings import APIConfig
+from .utils.settings import FXConfig
+from .utils.settings import KafkaConfig
+from .utils.settings import MinioConfig
+from .utils.settings import SchemaRegistryConfig
 
 
 minio_client = object_store.get_client(
@@ -20,7 +20,9 @@ minio_client = object_store.get_client(
 )
 sr = SchemaRegistry(endpoint_url=SchemaRegistryConfig().endpoint_url)
 admin_client = AdminClient(
-    {"bootstrap.servers": KafkaConfig().bootstrap_servers},
+    {
+        "bootstrap.servers": KafkaConfig().bootstrap_servers,
+    },
 )
 
 
@@ -41,6 +43,11 @@ def setup():
 
 def create_app():
     app = Flask(__name__)
+    
+    @app.route("/")
+    def index():
+        return "Server is up"
+    
     app.config.from_object(APIConfig())
 
     api = Api(app)

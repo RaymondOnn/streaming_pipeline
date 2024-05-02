@@ -9,10 +9,10 @@ from .object_store import put_json
 from .pubsub import AvroProducer
 from .registry import make_schema_str
 from .registry import SchemaRegistry
-from flask_api.utils.settings import FXConfig
-from flask_api.utils.settings import KafkaConfig
-from flask_api.utils.settings import MinioConfig
-from flask_api.utils.settings import SchemaRegistryConfig
+from ..utils.settings import FXConfig
+from ..utils.settings import KafkaConfig
+from ..utils.settings import MinioConfig
+from ..utils.settings import SchemaRegistryConfig
 
 
 class TransactionStream(BaseModel):
