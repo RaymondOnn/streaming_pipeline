@@ -1,6 +1,4 @@
 ---
-version: "3"
-
 include:
   - path:
     # - ./src/source/docker-compose.yaml

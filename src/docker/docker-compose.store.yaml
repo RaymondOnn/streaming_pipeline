@@ -1,7 +1,5 @@
 ---
 # Spark Standalone: https://spark.apache.org/docs/latest/spark-standalone.html
-version: '3'
-
 services:
   postgresdb:
     container_name: postgresdb
