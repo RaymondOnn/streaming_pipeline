@@ -8,8 +8,8 @@ from confluent_kafka import KafkaException
 from confluent_kafka.admin import AdminClient
 from confluent_kafka.admin import NewTopic
 
-from src.flask_api.fx import pubsub
-from src.flask_api.fx.pubsub import AvroProducer
+from src.flask_api.app.fx import pubsub
+from src.flask_api.app.fx.pubsub import AvroProducer
 
 
 @pytest.fixture

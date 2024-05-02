@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from minio import Minio
 
-from src.flask_api.fx import object_store
+from src.flask_api.app.fx import object_store
 
 
 @pytest.fixture

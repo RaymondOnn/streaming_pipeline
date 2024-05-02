@@ -7,8 +7,8 @@ import pytest
 from confluent_kafka.schema_registry import Schema
 from confluent_kafka.schema_registry import SchemaRegistryClient
 
-from src.flask_api.fx import registry
-from src.flask_api.fx.registry import SchemaRegistry
+from src.flask_api.app.fx import registry
+from src.flask_api.app.fx.registry import SchemaRegistry
 
 
 @dataclass
