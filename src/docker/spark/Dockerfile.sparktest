@@ -1,0 +1,12 @@
+ARG SPARK_VERSION=3.5.0
+
+FROM bitnami/spark:${SPARK_VERSION}
+
+# Install python deps
+RUN pip install --no-cache-dir pytest py4j
+RUN --mount=type=bind,source=src/spark/requirements.spark.txt,target=/tmp/requirements.txt \
+            pip install --no-cache-dir --requirement /tmp/requirements.txt
+
+# COPY tests/spark ./tests
+
+# CMD python -m pytest tests/
