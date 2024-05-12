@@ -2,44 +2,46 @@ import csv
 import json
 
 import httpx
+from loguru import logger
 
 SOURCE_FILE = "src/source/data/sample.csv"
 API_URL = "http://localhost:5000/transactions"
 
 
+# Event hooks for logging requests and responses
+# https://www.python-httpx.org/advanced/#event-hooks
+
+
 def log_request(request):
-    print(
-        f"Request event hook: {request.method} {request.url} \
-            - Waiting for response"
+    """Log requests before they are sent"""
+    logger.debug(
+        f"Request event hook: {request.method} {request.url}"
+        + " - Waiting for response"
     )
 
 
 def log_response(response):
+    """Log responses after they are received"""
     request = response.request
-    print(
-        f"Response event hook: {request.method} {request.url} \
-            - Status {response.status_code}"
+    logger.debug(
+        f"Response event hook: {request.method} {request.url}"
+        + f" - Status {response.status_code}"
     )
 
 
-def stream_transactions(file: str):
-    with open(file, newline="") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if row.get("", None) is not None:
-                row.pop("")
-            yield json.dumps(row, indent=4)
+def stream_transactions(file_path: str):
+    """Stream transactions from a CSV file"""
+    with open(file_path, newline="") as file:
+        reader = csv.DictReader(file)
+        for transaction in reader:
+            yield json.dumps(transaction)
 
 
 def main():
-    with httpx.Client(
-        # event_hooks={"request": [log_request], "response": [log_response]}
-    ) as client:
+    """Send transactions to the server"""
+    with httpx.Client(event_hooks={"response": [log_response]}) as client:
         for transaction in stream_transactions(SOURCE_FILE):
-            # print(transaction)
-            resp = client.post(API_URL, json=transaction)
-            resp.raise_for_status()
-            # print(resp.json())
+            client.post(API_URL, json=transaction)
 
 
 if __name__ == "__main__":
