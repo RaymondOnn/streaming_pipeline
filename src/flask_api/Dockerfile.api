@@ -1,0 +1,18 @@
+FROM python:3.11-slim-buster
+
+# ENV FLASK_APP=app.py
+# ENV FLASK_RUN_HOST=0.0.0.0
+ENV FLASK_HOME=/flask_api
+
+WORKDIR ${FLASK_HOME}
+COPY . .
+
+RUN pip3 install --no-cache-dir --requirement requirements.api.txt
+EXPOSE 5000
+# CMD ["python", "-m", "flask", "run"]
+
+CMD [ \
+    "python", "-m", "gunicorn", \
+    "--config", "./gunicorn.conf.py", \
+    "app.app:create_app()" \
+]
