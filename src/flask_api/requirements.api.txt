@@ -7,4 +7,5 @@ fastavro==1.9.1
 requests
 py-avro-schema==3.6.0
 confz
-gunicorn
+gunicorn==22.0.0
+loguru==0.7.2
