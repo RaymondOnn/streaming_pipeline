@@ -1,4 +1,85 @@
 site_name: My Docs
 site_url: https://mydomain.org/mysite
+
+nav:
+  - Home: index.md
+  - Code Reference: 
+    - Source: source.md
+    - API: 
+      - App: flask.api.app.md
+      - Responses: flask.api.responses.md
+      - Endpoints: flask.api.transactions.md
+      - FX:
+        - Object Store: flask.fx.object_store.md
+        - PubSub: flask.fx.pubsub.md
+        - Registry: flask.fx.registry.md
+      - Utils:
+        - Settings: flask.utils.settings.md  
+        - Log: flask.utils.log.md
+    - Sink:
+      - App: spark.main.md
+      - Lib:
+        - Loader: spark.lib.loader.md
+        - Transformations: spark.lib.transformations.md
+        - Writer: spark.lib.writer.md
+        - Utils: spark.lib.utils.md
+        - Logger: spark.lib.logger.md
+        - Config: spark.lib.config.md
+  # defer to gen-files + literate-nav
+  # - Code Reference: reference/
+
 theme:
   name: material
+  palette: 
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default 
+      primary: indigo
+      accent: yellow
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: yellow
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  features:
+    # - navigation.tabs
+    # - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes 
+    - content.code.copy
+
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      use_pygments: true
+      pygments_lang_class: true
+
+plugins:
+  - search
+  - mkdocstrings
+  # - gen-files:
+  #     scripts:
+  #     - scripts/gen_ref_pages.py 
+  # - literate-nav:
+  #     nav_file: SUMMARY.md
+  # - section-index
