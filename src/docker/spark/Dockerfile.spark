@@ -59,5 +59,6 @@ RUN chmod u+x /opt/spark/sbin/* \
     && chmod +x ./entrypoint.sh
 
 ENV PYTHONPATH=$SPARK_HOME/python/:$PYTHONPATH
+ENV SPARK_NO_DAEMONIZE=true
 
 ENTRYPOINT ["./entrypoint.sh"]
