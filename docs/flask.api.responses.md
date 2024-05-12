@@ -1,3 +1,3 @@
 ## Responses
 
-::: flask_api.app.api.exceptions
+::: src.flask_api.app.api.exceptions

@@ -1,3 +1,3 @@
 # App
 
-::: flask_api.app.app
+::: src.flask_api.app.app

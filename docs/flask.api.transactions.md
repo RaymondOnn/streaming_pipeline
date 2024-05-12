@@ -1,3 +1,3 @@
 ## Transactions Endpoint
 
-::: flask_api.app.api.transactions
+::: src.flask_api.app.api.transactions
