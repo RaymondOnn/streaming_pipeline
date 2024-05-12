@@ -76,10 +76,10 @@ markdown_extensions:
 
 plugins:
   - search
-  - mkdocstrings:
-      handlers:
-        python:
-          paths: [src] 
+  - mkdocstrings
+      # handlers:
+      #   python:
+      #     paths: [src] 
   # - gen-files:
   #     scripts:
   #     - scripts/gen_ref_pages.py 
