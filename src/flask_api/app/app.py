@@ -1,57 +1,97 @@
-from confluent_kafka.admin import AdminClient
-from flask import Flask
+import traceback
+from flask import Flask, current_app
 from flask_smorest import Api
 
 from .api.transactions import blp as TransactionBlueprint
-from .fx import object_store
-from .fx.pubsub import create_topic
-from .fx.registry import make_schema_str
-from .fx.registry import SchemaRegistry
-from .fx.sort_requests import TransactionStream
+from .api.transactions import TransactionStream
+from .api.exceptions import BaseErrorResponse, Response, ServerError, BadRequest
+from .fx import object_store, pubsub,registry
 from .utils.settings import APIConfig
 from .utils.settings import FXConfig
 from .utils.settings import KafkaConfig
-from .utils.settings import MinioConfig
-from .utils.settings import SchemaRegistryConfig
 
 
-minio_client = object_store.get_client(
-    MinioConfig().endpoint_url, MinioConfig().user, MinioConfig().password
-)
-sr = SchemaRegistry(endpoint_url=SchemaRegistryConfig().endpoint_url)
-admin_client = AdminClient(
-    {
-        "bootstrap.servers": KafkaConfig().bootstrap_servers,
-    },
-)
+
+minio_client = object_store.get_minio_client()
+sr_client = registry.get_schema_registry_client()
+admin_client = pubsub.get_admin_client()
 
 
 def setup():
-    # Set Up Storage buckets
+    """Set up storage, schema registry, and Kafka topic for streaming."""
     for bucket in FXConfig().buckets:
         object_store.get_bucket(minio_client, bucket)
-    schema_str = make_schema_str(
-        TransactionStream
-    )  # Schema Registry needed to coordinate schema
-    sr.register_schema(
-        KafkaConfig().topic, schema_str
-    )  # TODO: get schema. register if not exist
 
-    # Set up Producer for streaming
-    create_topic(admin_client, KafkaConfig().topic)
+    schema_str = registry.make_schema_str(TransactionStream)
+    sr_client.register_schema(KafkaConfig().topic, schema_str)
+
+    pubsub.create_topic(admin_client, KafkaConfig().topic)
+
+def handle_error(exception: Exception):
+    """
+    Handles an exception and returns an appropriate response based on the type of exception.
+
+    Parameters:
+        exception (Exception): The exception that was raised.
+
+    Returns:
+        Response: The response object containing the appropriate status code and error message.
+
+    """
+    if isinstance(exception, BaseErrorResponse):
+        return Response(exception.status_code, exception.errors)
+
+    log_msg = f"{type(exception).__name__} - {exception}"
+    current_app.logger.error(log_msg)
+
+    if current_app.debug:
+        current_app.logger.error(
+            log_msg + "\n" + traceback.format_exc()
+        )
+
+    return Response(
+        ServerError.status_code,
+        data={"error": ServerError.default_err_msg},
+    )
 
 
-def create_app():
+def create_app() -> Flask:
+    """
+    Creates a Flask application instance.
+
+    This function initializes a Flask application with the 
+    specified configuration. It registers the `TransactionBlueprint` blueprint 
+    and sets up the necessary routes. It also sets up a catch-all route to 
+    handle invalid paths and an error handler for unhandled exceptions.
+
+    Returns:
+        Flask: The Flask application instance.
+
+    """
     app = Flask(__name__)
-    
-    @app.route("/")
-    def index():
-        return "Server is up"
-    
     app.config.from_object(APIConfig())
-
     api = Api(app)
     api.register_blueprint(TransactionBlueprint)
+
+    @app.route("/")
+    def index():
+        return Response(200, data="Server is up")
+
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def _catch_all(*args, **kwargs):
+        try:
+            raise BadRequest("Invalid path", debug=kwargs)
+        except Exception as e:
+            current_app.logger.error(
+                "Catch all error - Unhandled exception " 
+                + f"{type(e).__name__}: {e}",
+                exc_info=True)
+            return Response(
+                ServerError.status_code,
+                data={"error": ServerError.default_err_msg})
+
+    app.errorhandler(Exception)(handle_error)
 
     with app.app_context():  # i.e. before_first_request
         setup()
