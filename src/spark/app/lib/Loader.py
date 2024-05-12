@@ -1,5 +1,5 @@
-from app.lib.Logger import Log4j
-from pyspark.sql import DataFrame
+from .Logger import Log4j
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import BooleanType
 from pyspark.sql.types import FloatType
 from pyspark.sql.types import IntegerType
@@ -39,16 +39,29 @@ def get_csv_schema():
     )
 
 
-def read_events(spark, kafka_config: dict[str, str]) -> DataFrame:
-    """Get streaming events from Kafka broker
 
-    Args:
-        spark_session (SparkSession): Instance of SparkSession
-        kafka_config (dict[str, str]): Read configurations for Kafka
 
-    Returns:
-        DataFrame: _description_
+def read_events(spark: SparkSession, kafka_config: dict[str, str]) -> DataFrame:
+    """
+    Reads data from a Kafka topic using the specified
+    read configurations.
+
+    Parameters
+    ----------
+    spark_session : SparkSession
+        Instance of SparkSession
+    kafka_config : dict[str, str]
+        Read configurations for Kafka. The keys in the dictionary
+        should be the Kafka options and the values should be their
+        corresponding values as strings.
+
+    Returns
+    -------
+    DataFrame
+        Spark DataFrame containing the streaming data
     """
     df = spark.readStream.format("kafka").options(**kafka_config).load()
-    Log4j(spark).info(f'Listening to topic "{kafka_config["subscribe"]}"...')
+    Log4j(spark).info(
+        f'Listening to topic "{kafka_config["subscribe"]}"...'
+    )
     return df
