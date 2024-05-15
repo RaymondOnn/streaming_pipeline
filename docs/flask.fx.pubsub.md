@@ -18,3 +18,5 @@
 
 
 ::: src.flask_api.app.fx.pubsub
+    options:
+        members_order: source
