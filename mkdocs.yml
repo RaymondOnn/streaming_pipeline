@@ -82,6 +82,9 @@ plugins:
           paths: 
             - src/flask_api
             - src/source
+            - src/spark
+          options:
+            members_order: source
   # - gen-files:
   #     scripts:
   #     - scripts/gen_ref_pages.py 
