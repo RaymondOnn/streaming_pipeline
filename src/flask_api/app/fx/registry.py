@@ -1,11 +1,12 @@
 from dataclasses import dataclass
-from typing import Type
+from typing import Optional, Type
 
 import py_avro_schema as pas
 from confluent_kafka.schema_registry import Schema
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
 from confluent_kafka.schema_registry.avro import AvroSerializer
+from confluent_kafka.schema_registry.error import SchemaRegistryError
 
 from ..utils.settings import SchemaRegistryConfig
 from ..utils.log import logger
@@ -24,36 +25,75 @@ class SchemaRegistry:
     """
 
     endpoint_url: str
+    
 
     def __post_init__(self) -> None:
         schema_config = {
             "url": self.endpoint_url,
         }
         self.sr_client = SchemaRegistryClient(schema_config)
-        logger.info("Created an instance of SchemaRegistry("
-                + f"endpoint_url={self.endpoint_url})"
+        
+        logger.debug("Created an instance of SchemaRegistry("
+                + f"endpoint_url={self.endpoint_url}): {self.sr_client}",
         )
 
     # TODO: What if schema_str is just a string and not valid schema_str
-    def register_schema(self, topic: str, schema_str: str):
-        """Register a schema with the registry
+    def register_schema(
+        self,
+        topic: str,
+        schema_str: Optional[str] = None,
+        class_object: Optional[Type] = None,
+    ) -> Optional[int]:
+        """
+        Register a schema with the schema registry using the topic name
+        and either a schema_str or class_object.
 
         Args:
             topic (str): Kafka topic name
-            schema_str (str): Avro schema in json format
+            schema_str (str, optional): Avro schema in json format.
+            class_object (Type, optional): Any dataclass or pydantic model.
+                NOTE: Either `schema_str` or `class_object` must be provided.
 
         Returns:
             int: The id of the registered schema
+
+        Raises:
+            Exception: If both `schema_str` and `class_object` are provided,
+                or if neither is provided.
         """
         try:
+            schema_id = None
+            object_name = None
+            
+            if schema_str is not None and class_object is not None:
+                raise Exception(
+                    "Cannot pass both 'schema_str' and 'class_object'"
+                )
+
+            if schema_str is None and class_object is None:
+                raise Exception("Must pass either 'schema_str' or 'class_object'")
+
+            if class_object is not None:
+                schema_str = make_schema_str(class_object)
+                object_name = class_object.__name__
+
             new_schema = Schema(schema_str, schema_type=SCHEMA_TYPE)
-            return self.sr_client.register_schema(
-                subject_name=get_subject_name(topic),
-                schema=new_schema,
+            schema_id = self.sr_client.register_schema(
+                subject_name=get_subject_name(topic), schema=new_schema
             )
-            logger.success("Schema registered...")
-        except Exception as e:
+            if object_name:
+                logger.success(f"Registered schema for {object_name}...")
+            else:
+                logger.success("Registered schema...")
+
+        except SchemaRegistryError as e:
             logger.exception(e)
+            return None
+        finally:
+            return schema_id
+
+
+
 
     def _delete_subject(self, topic: str) -> list:
         """Delete all versions of a schema
@@ -66,8 +106,9 @@ class SchemaRegistry:
         """
         return self.sr_client.delete_subject(get_subject_name(topic))
 
+
     # TODO: check return type
-    def update_schema(self, topic: str, schema_str: str):
+    def update_schema(self, topic: str, schema_str: str) -> Optional[int]:
         """Update the schema for a topic
 
         This will first delete all versions of the schema and then
@@ -108,11 +149,15 @@ class SchemaRegistry:
         Returns:
             AvroSerializer: _description_
         """
-        return AvroSerializer(
-            schema_registry_client=self.sr_client,
-            schema_str=schema_str,
-            conf={"auto.register.schemas": False},
-        )
+        try:
+            return AvroSerializer(
+                schema_registry_client=self.sr_client,
+                schema_str=schema_str,
+                conf={"auto.register.schemas": False},
+            )
+        except SchemaRegistryError as e: 
+            logger.exception(e)
+            raise Exception(f"Failed to create serializer: {e}")
 
     def make_deserializer(self, schema_str: str) -> AvroDeserializer:
         """Create avro_deserializer that is correctly configured
@@ -123,9 +168,13 @@ class SchemaRegistry:
         Returns:
             AvroDeserializer: _description_
         """
-        return AvroDeserializer(
-            schema_registry_client=self.sr_client, schema_str=schema_str
-        )
+        try:
+            return AvroDeserializer(
+                schema_registry_client=self.sr_client, schema_str=schema_str
+            )
+        except SchemaRegistryError as e:
+            logger.exception(e)
+            raise Exception(f"Failed to create deserializer: {e}")    
 
 def get_subject_name(topic: str) -> str:
     """
@@ -153,19 +202,22 @@ def make_schema_str(class_object: Type) -> str:
     Returns:
         str: The Avro schema in JSON format.
     """
-    # Use the py_avro_schema library to generate an Avro schema
-    # from the class object.
-    schema_bytes = pas.generate(
-        class_object,
-        # Use JSON indent of 2 and no auto namespace
-        options=pas.Option.JSON_INDENT_2 | pas.Option.NO_AUTO_NAMESPACE,
-    )
-    # Decode the bytes to a string
-    return schema_bytes.decode()
-
+    try:
+        # Use the py_avro_schema library to generate an Avro schema
+        # from the class object.
+        schema_bytes = pas.generate(
+            class_object,
+            # Use JSON indent of 2 and no auto namespace
+            options=pas.Option.JSON_INDENT_2 | pas.Option.NO_AUTO_NAMESPACE,
+        )
+        # Decode the bytes to a string
+        return schema_bytes.decode()
+    except Exception as e:
+        logger.exception(e)
+        raise Exception(f"Failed to generate schema: {e}")
 
 def get_schema_registry_client(
-        endpoint_url: str = cfg.endpoint_url
+        endpoint_url: str = cfg.endpoint_url,
 ) -> "SchemaRegistry":
     """Create an instance of SchemaRegistry
 

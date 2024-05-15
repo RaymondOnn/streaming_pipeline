@@ -8,6 +8,7 @@ from flask import request
 from flask.views import MethodView
 from flask_smorest import Blueprint
 
+from .exceptions import Response
 from ..fx import pubsub, object_store, registry
 from ..utils.settings import FXConfig, KafkaConfig
 
@@ -15,7 +16,7 @@ from ..utils.settings import FXConfig, KafkaConfig
 blp = Blueprint("transactions", __name__, description="abc")
 
 
-class TransactionStream(BaseModel):
+class TransactionData(BaseModel):
     trans_date_trans_time: datetime
     cc_num: str
     merchant: str
@@ -42,9 +43,7 @@ class TransactionStream(BaseModel):
 
 # Set up other services
 minio_client = object_store.get_minio_client()
-schema_str = registry.make_schema_str(TransactionStream)
-producer = pubsub.get_avro_producer()
-producer.set_avro_serializer(schema_str)
+producer = pubsub.get_avro_producer().set_avro_serializer(class_object=TransactionData)
 
 
 def generate_object_name(request_json: str) -> str:
@@ -80,7 +79,7 @@ class Transaction(MethodView):
     """Endpoint for processing transactions"""
 
     # Validate and send the data to Kafka or a valid bucket
-    def post(self):
+    def post(self)-> Response:
         """
         Process a transaction by validating the data and sending it to the 
         appropriate destination.
@@ -97,24 +96,28 @@ class Transaction(MethodView):
         obj_name = generate_object_name(resp)
         try:
             # Validate the transaction data using the `TransactionStream` model. 
-            item = TransactionStream.model_validate_json(resp)
+            item = TransactionData.model_validate_json(resp)
             
             # Checks if the transaction is flagged as fraud. 
             # If flagged as fraud, transaction data is stored in the `bucket_fraud` MinIO bucket. 
             if item.is_fraud:
+                print("is_fraud")
                 object_store.put_json(
                     minio_client, FXConfig().bucket_fraud, obj_name, item.model_dump()
                 )
             else:
+                print("not_fraud")
+                try:
                 # Transaction data is sent to the Kafka topic specified in the configuration.
-                producer.send_message(
-                    KafkaConfig().topic,
-                    schema_str=schema_str,
-                    payload=item.model_dump(),
-                    poll_timeout_secs=0.1,
-                )
+                    producer.send_message(
+                        KafkaConfig().topic,
+                        payload=item.model_dump(),
+                        poll_timeout_secs=0.1,
+                    )
+                except Exception as e:
+                    print(e)
         except ValidationError as exc:
-            
+            print("validation failed")
             # If the validation fails, a `ValidationError` exception is raised. 
             # JSON response modified to include the validation errors. 
             request_json = json.dumps({**json.loads(resp), "errors": exc.errors()})
@@ -124,4 +127,4 @@ class Transaction(MethodView):
                 minio_client, FXConfig().bucket_valid, obj_name, json.loads(request_json)
             )
         finally:
-            return resp
+            return Response(200, data=resp)

@@ -1,9 +1,9 @@
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional, Self, Type
 
-from .registry import get_schema_registry_client
+from .registry import get_schema_registry_client, make_schema_str
 from ..utils.settings import KafkaConfig
 from ..utils.log import logger
 
@@ -11,6 +11,7 @@ try:
     import confluent_kafka
     from confluent_kafka import KafkaException
     from confluent_kafka import Producer
+    from confluent_kafka import Message
     from confluent_kafka.admin import AdminClient
     from confluent_kafka.admin import NewTopic
     from confluent_kafka.schema_registry.avro import AvroSerializer
@@ -31,41 +32,73 @@ class MissingParams(Exception):
 @dataclass
 class AvroProducer:
     kafka_brokers: str
-
+    
     def __post_init__(self) -> None:
         producer_config = {
             "bootstrap.servers": self.kafka_brokers,
             "error_cb": _error_callback_func,
         }
         self.producer = Producer(producer_config)
-        logger.info(
+        logger.debug(
             "Created an instance of AvroProducer("
             + ", ".join(f"{k}={v}" for k, v in producer_config.items())
-            + ")"
+            + f"): {self.producer}",
         )
 
-    def set_avro_serializer(self, schema_str: str) -> AvroSerializer:
+    def set_avro_serializer(
+        self,
+        schema_str: Optional[str] = None,
+        class_object: Optional[Type] = None,
+    ) -> "AvroProducer":
         """
         Get value serializer from Schema Registry
 
         This function gets the AvroSerializer from the Schema Registry
-        so that it can be used to serialize the event payload.
+        and assigns it as the value_serializer to be used for serializing
+        the event payload.
 
         Args:
-            schema_str (str): Avro Schema in json format
+            schema_str (str, optional): Avro Schema in json format.
+            class_object (Type, optional): Any dataclass or pydantic model
+            NOTE: Either `schema_str` or `class_object` must be provided.
 
         Returns:
-            AvroSerializer: AvroSerializer configured to serialize payload
+            AvroProducer: Returns self to allow chaining of method calls.
+
+        Raises:
+            Exception: If both `schema_str` and `class_object` are provided,
+                or if neither is provided.
         """
-        sr_client = get_schema_registry_client()
-        self.value_serializer = sr_client.make_serializer(schema_str=schema_str)
+        schema_string = "{}"
+        
+        if schema_str is not None and class_object is not None:
+            raise Exception(
+                "Cannot pass both 'schema_str' and 'class_object'"
+            )
+
+        if schema_str is None and class_object is None:
+            raise Exception("Must pass either 'schema_str' or 'class_object'")
+
+        if class_object is not None:
+            schema_string = make_schema_str(class_object)
+            
+            
+        try:
+            sr_client = get_schema_registry_client()
+            self.value_serializer = sr_client.make_serializer(schema_str=schema_string)
+            logger.success("AvroSerializer set. AvroProducer ready to send messages.")
+        except Exception as e:  
+            logger.exception(e)
+            raise Exception(f"Failed to set AvroSerializer: {e}")
+        finally:
+            return self
 
     def send_message_with_key(
         self,
         topic: str,
         payload: dict,
         key: str,
-        poll_timeout_secs: float = 0.5,
+        poll_timeout_secs: float = 0.0,
     ) -> None:
         """
         Send a message with a key to the specified topic.
@@ -80,16 +113,9 @@ class AvroProducer:
             None
         """
         key, value = extract_key(payload=payload, key_field_name=key)
-        key_serializer = StringSerializer()
-        key_bytes = key_serializer(
-            key, 
-            SerializationContext(topic, MessageField.KEY)
-        )
-        
-        value_bytes = self.value_serializer(
-            value, 
-            SerializationContext(topic, MessageField.VALUE)
-        )
+        key_bytes = self._serialize_key(topic=topic, key=key)
+        value_bytes = self._serialize_value_payload(topic=topic, payload=value)
+                
         self.producer.produce(
             topic=topic,
             key=key_bytes,
@@ -103,7 +129,6 @@ class AvroProducer:
     def send_message(
         self,
         topic: str,
-        schema_str: str,
         payload: dict[str, Any],
         poll_timeout_secs: float = 0.0,
     ) -> None:
@@ -116,10 +141,9 @@ class AvroProducer:
             payload (dict): The event payload to send.
             poll_timeout_secs (float, optional): The polling timeout in seconds. Defaults to 0.0.
         """
-        value_bytes = self.value_serializer(
-            payload, 
-            SerializationContext(topic, MessageField.VALUE)
-        )
+        value_bytes = self._serialize_value_payload(topic=topic, payload=payload)
+        
+        print('send')
         self.producer.produce(
             topic=topic,
             value=value_bytes,
@@ -128,7 +152,56 @@ class AvroProducer:
 
         # Serve on_delivery callbacks from previous calls to produce()
         self.producer.poll(timeout=poll_timeout_secs)
+    
+    def _serialize_key(self, topic: str, key: str) -> bytes | None:
+        """
+        Serialize the key for the specified topic.
 
+        Args:
+            topic (str): The name of the topic.
+            key (str): The key to serialize.
+
+        Returns:
+            bytes | None: The serialized key.
+
+        Raises:
+            Exception: If serialization fails.
+        """
+        try:
+            # Use StringSerializer from Confluent's Python Client to serialize the key
+            key_serializer = StringSerializer()
+            # Pass the topic, key, and the message field (KEY) to the serializer
+            return key_serializer(
+                key, 
+                SerializationContext(topic, MessageField.KEY)
+            )
+        except Exception as e:
+            # Raise an exception with the error message
+            raise Exception(f"Key serialization failed: {e}") from e
+
+
+    def _serialize_value_payload(self, topic: str, payload: dict) -> bytes | None:
+        """
+        Serialize the event payload using the AvroSerializer.
+
+        Args:
+            topic (str): The name of the topic.
+            payload (dict): The event payload to send.
+
+        Returns:
+            bytes | None: The serialized event payload.
+
+        Raises:
+            Exception: If serialization fails.
+        """
+        try:
+            print('serialize')
+            return self.value_serializer(
+                payload,
+                SerializationContext(topic, MessageField.VALUE),
+            )
+        except Exception as e:
+            raise Exception(f"Serialization failed: {e}") from e
 
     def close(self) -> None:
         """Prepare producer for a clean shutdown
@@ -156,6 +229,17 @@ def get_avro_producer(kafka_brokers:str=cfg.bootstrap_servers) -> AvroProducer:
     return AvroProducer(kafka_brokers=kafka_brokers)
 
 
+def has_valid_value_serializer(producer: AvroProducer) -> bool:
+    logger.info("Checking if AvroSerializer is set.")
+    result = False
+    if producer.value_serializer is not None:
+        result = True
+    else:
+        logger.error("AvroSerializer not set. Call set_avro_serializer() first.")
+    return result
+
+
+
 def _error_callback_func(kafka_error) -> None:
     """
     A callback function that is called when an error occurs in the Kafka producer.
@@ -173,7 +257,7 @@ def _error_callback_func(kafka_error) -> None:
     raise KafkaException(kafka_error)
 
 
-def _send_delivery_report(err, msg) -> None:
+def _send_delivery_report(err: Optional[str], msg: Message) -> None:
     """
     A function that sends a delivery report based on the error and message received.
 
@@ -184,6 +268,7 @@ def _send_delivery_report(err, msg) -> None:
     Returns:
         None
     """
+    print('kafka')
     if err is not None:
         logger.error(f"Message delivery failed: {err}")
         raise KafkaException(err)
@@ -214,15 +299,17 @@ def extract_key(payload: dict, key_field_name: str) -> tuple[str, dict[str, Any]
         remaining dictionary with the key field removed.
 
     Raises:
+        Exception: If payload is not a dictionary.
         Exception: If the key field is not found in the payload.
     """
-    try:
-        key_value = payload.pop(key_field_name)
-        if key_value is None:
-            raise Exception(f"Failed: Could not find {key_field_name} in payload")
-        return str(key_value), payload
-    except Exception as e:
-        raise Exception(e) from e
+    if not isinstance(payload, dict):
+        raise Exception("The input for 'payload' must be a dictionary.")
+    
+    if payload.get(key_field_name, None) is None:
+        raise Exception(f"Could not find '{key_field_name}' in payload dictionary")
+    
+    key_value = payload.pop(key_field_name)
+    return str(key_value), payload
 
 
 def get_admin_client(kafka_brokers: str = cfg.bootstrap_servers) -> AdminClient:
@@ -273,25 +360,30 @@ def _topic_exists(client: AdminClient, topic: str) -> bool:
 
 
 
-def _confirm_topic_creation(result_dict: dict) -> None:
+def _confirm_topic_creation(result_dict: dict) -> bool:
     """Confirm topic creation was successful
 
-    This function waits for the topic creation futures to complete and
-    logs the result of each future. If the topic creation was successful,
-    it waits for one second before returning.
+    This function iterates over the dictionary of futures created by the topic 
+    creation process to check if each topic creation was successful.
 
     Args:
         result_dict (dict):
             A dict of futures for each topic, keyed by the topic name.
             The future result() method returns None if successful.
+
+    Returns:
+        bool: True if all topics were created successfully, False otherwise.
     """
+    result = True
     for topic, future in result_dict.items():
-        try:
-            future.result()  # The result itself is None
+        if future.result() is not None:  
+            logger.info(f"Failed to create topic '{topic}': {future.result()}")
+            result = False
+        else:
+            # The future result() method returns None if successful.
             logger.success(f"Topic '{topic}' successfully created")
             time.sleep(1)
-        except Exception as e:
-            logger.info(f"Failed to create topic '{topic}': {e}")
+    return result
 
 
 def _create_topic(

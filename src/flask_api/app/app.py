@@ -3,7 +3,7 @@ from flask import Flask, current_app
 from flask_smorest import Api
 
 from .api.transactions import blp as TransactionBlueprint
-from .api.transactions import TransactionStream
+from .api.transactions import minio_client, producer, TransactionData
 from .api.exceptions import BaseErrorResponse, Response, ServerError, BadRequest
 from .fx import object_store, pubsub,registry
 from .utils.settings import APIConfig
@@ -11,21 +11,20 @@ from .utils.settings import FXConfig
 from .utils.settings import KafkaConfig
 
 
-
-minio_client = object_store.get_minio_client()
+# def setup():
+# Set up storage, schema registry, and Kafka topic for streaming.
 sr_client = registry.get_schema_registry_client()
+sr_client.register_schema(topic=KafkaConfig().topic, class_object=TransactionData)
+
+for bucket in FXConfig().buckets:
+    object_store.get_bucket(minio_client, bucket)
+
 admin_client = pubsub.get_admin_client()
+pubsub.create_topic(admin_client, KafkaConfig().topic)
 
+def check_services():
+    pubsub.has_valid_value_serializer(producer)
 
-def setup():
-    """Set up storage, schema registry, and Kafka topic for streaming."""
-    for bucket in FXConfig().buckets:
-        object_store.get_bucket(minio_client, bucket)
-
-    schema_str = registry.make_schema_str(TransactionStream)
-    sr_client.register_schema(KafkaConfig().topic, schema_str)
-
-    pubsub.create_topic(admin_client, KafkaConfig().topic)
 
 def handle_error(exception: Exception):
     """
@@ -93,9 +92,9 @@ def create_app() -> Flask:
 
     app.errorhandler(Exception)(handle_error)
 
-    with app.app_context():  # i.e. before_first_request
-        setup()
-        return app
+    # setup()
+    # app.app_context().push()  # i.e. before_first_request
+    return app
 
 
 if __name__ == "__main__":

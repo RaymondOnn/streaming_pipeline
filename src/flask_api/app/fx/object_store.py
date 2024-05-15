@@ -35,31 +35,18 @@ def get_minio_client(
     Returns:
         An instance of the MinIO client object.
     """
-    logger.debug(f"Creating Minio client with "
-        f"endpoint={endpoint_url}, "
-        f"access_key={username}, "
-        f"secret_key={password}, "
-        f"secure={secure}")
     client = Minio(
         endpoint=endpoint_url,
         access_key=username,
         secret_key=password,
         secure=secure,
     )
-    logger.debug(f"Created Minio client instance: {client}")
-    logger.info(
+    logger.debug(
         "Created an instance of Minio "
-        "(endpoint=%s, access_key=%s, secret_key=%s, secure=%s)",
-        endpoint_url,
-        username,
-        password,
-        secure,
+        f"(endpoint={endpoint_url}, access_key={username}, "
+        f"secret_key={password}, secure={secure}): {client}",
     )
     return client
-
-
-
-    
 
 
 def get_bucket(minio_client: Minio, bucket_name: str) -> None:
